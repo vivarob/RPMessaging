@@ -15,7 +15,7 @@ class ChatController: UICollectionViewController, UICollectionViewDelegateFlowLa
     
     var messages = [Message]()
     var messagesIds = [String]()
-    
+    var timer = Timer()
     var user: User? {
         didSet {
             self.title = user?.username
@@ -88,6 +88,8 @@ class ChatController: UICollectionViewController, UICollectionViewDelegateFlowLa
             
             if (value["users"] as? [String])!.contains(userId) && (value["users"] as? [String])!.contains(currentId) {
                 self.chat = Chat(dictionary: value  as! [String : Any])
+                self.timer.invalidate()
+                self.timer = Timer.scheduledTimer(timeInterval: 0.1, target: self, selector: #selector(self.getChat), userInfo: nil, repeats: false)
                 self.getMessages()
             }
             
@@ -99,8 +101,6 @@ class ChatController: UICollectionViewController, UICollectionViewDelegateFlowLa
     
     func getMessages(){
         let ref = Database.database().reference()
-        self.messages.removeAll()
-        self.messagesIds.removeAll()
         self.collectionView?.reloadData()
         ref.child("Messages").observe(.childAdded , with: { (snapshot) in
             // Get user value
@@ -115,6 +115,7 @@ class ChatController: UICollectionViewController, UICollectionViewDelegateFlowLa
                 self.messages.append(Message(dictionary: value as! [String : Any]))
                 //                }
             }
+            
             self.collectionView?.reloadData()
             
             // ...
@@ -242,10 +243,6 @@ class ChatController: UICollectionViewController, UICollectionViewDelegateFlowLa
         }) { (error) in
             print(error.localizedDescription)
         }
-        
-        
-
-
     }
     
     func keyboardWillShow(notification: NSNotification) {
