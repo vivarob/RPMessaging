@@ -9,7 +9,7 @@
 import UIKit
 import Firebase
 
-class ChatController: UICollectionViewController, UICollectionViewDelegateFlowLayout{
+class ChatController: UICollectionViewController, UICollectionViewDelegateFlowLayout, UITextFieldDelegate{
     
     var writtingViewBottomConstraint: NSLayoutConstraint?
     
@@ -154,7 +154,7 @@ class ChatController: UICollectionViewController, UICollectionViewDelegateFlowLa
         sendButton.widthAnchor.constraint(equalToConstant: 80).isActive = true
         sendButton.heightAnchor.constraint(equalTo: writtingView.heightAnchor).isActive = true
     
-      
+        writtingTextfield.delegate = self
         
         writtingView.addSubview(writtingTextfield)
         writtingTextfield.centerYAnchor.constraint(equalTo: writtingView.centerYAnchor).isActive = true
@@ -179,7 +179,13 @@ class ChatController: UICollectionViewController, UICollectionViewDelegateFlowLa
     }
     
     func handleSend(){
-        let textToSend =  writtingTextfield.text!
+        
+        
+        guard let textToSend =  writtingTextfield.text?.trimmingCharacters(in: .whitespacesAndNewlines), textToSend != "" else {
+            print("The message is empty")
+
+            return
+        }
 
         writtingTextfield.text = ""
         guard let currentId = Auth.auth().currentUser?.uid else {
@@ -264,6 +270,11 @@ class ChatController: UICollectionViewController, UICollectionViewDelegateFlowLa
         
         return NSString(string: text).boundingRect(with: size, options: options, attributes: [NSFontAttributeName: UIFont.systemFont(ofSize: 16)], context: nil)
         
+    }
+    
+    func textFieldShouldReturn(_ textField: UITextField) -> Bool {
+        handleSend()
+        return true
     }
     
     func collectionView(_ collectionView: UICollectionView, layout collectionViewLayout: UICollectionViewLayout, sizeForItemAt indexPath: IndexPath) -> CGSize {
