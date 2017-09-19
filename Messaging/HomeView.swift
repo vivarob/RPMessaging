@@ -1,6 +1,6 @@
 //
 //  HomeView.swift
-//  Foodies
+//  Messaging
 //
 //  Created by Roberto Pirck Valdés on 12/9/17.
 //  Copyright © 2017 Roberto Pirck Valdés. All rights reserved.
@@ -20,7 +20,7 @@ class HomeView: UIViewController, UITextFieldDelegate{
     
     var loginImageView: UIImageView = {
         let imageView = UIImageView()
-        imageView.image = #imageLiteral(resourceName: "logInImage")
+        imageView.image = #imageLiteral(resourceName: "LogIn")
         imageView.contentMode = .scaleAspectFill
         imageView.translatesAutoresizingMaskIntoConstraints = false
         return imageView
@@ -79,8 +79,8 @@ class HomeView: UIViewController, UITextFieldDelegate{
     
     var actionButton: UIButton = {
         let button = UIButton()
-        button.backgroundColor = UIColor(red: 241/155, green: 196/255, blue: 15/255, alpha: 1)
-        button.setTitle("Resgister", for: .normal)
+        button.backgroundColor = .blue
+        button.setTitle("Register", for: .normal)
         button.setTitleColor(.white, for: .normal)
         button.titleLabel?.font = UIFont(name: "HelveticaNeue-Medium", size: 16)!
         button.layer.cornerRadius = 20
@@ -103,13 +103,14 @@ class HomeView: UIViewController, UITextFieldDelegate{
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        self.title = "Foodie"
+        self.title = "RP Messaging"
         let tap: UITapGestureRecognizer = UITapGestureRecognizer( target: self, action: #selector(dismissKeyboard))
         view.addGestureRecognizer(tap)
 //        NotificationCenter.default.addObserver(self, selector: #selector(keyboardWillShow), name: NSNotification.Name.UIKeyboardWillShow, object: nil)
 //        NotificationCenter.default.addObserver(self, selector: #selector(keyboardWillHide), name: NSNotification.Name.UIKeyboardWillHide, object: nil)
         navigationController?.navigationBar.titleTextAttributes = [NSForegroundColorAttributeName: UIColor.white, NSFontAttributeName: UIFont(name: "HelveticaNeue-Bold", size: 22)!]
-        navigationController?.navigationBar.barTintColor = UIColor(red: 241/155, green: 196/255, blue: 15/255, alpha: 1)
+        navigationController?.navigationBar.barTintColor = .blue
+        navigationController?.navigationBar.isTranslucent = false
         self.view.backgroundColor = .white
         // Do any additional setup after loading the view.
     }
@@ -121,13 +122,13 @@ class HomeView: UIViewController, UITextFieldDelegate{
                 return
             }
             
-            let ref = Database.database().reference(fromURL: "https://foodies-19e91.firebaseio.com/")
+            let ref = Database.database().reference(fromURL: "https://messaging-e9e92.firebaseio.com/")
             ref.child("Users").child(currentUser.uid).observeSingleEvent(of: .value, with: { (snapshot) in
                 // Get user value
                 guard let value = snapshot.value as? NSDictionary else { return  self.setUpView() }
                 guard let userDictionary = value as? [String: Any] else { return  self.setUpView() }
                 let _ = User(dictionary: userDictionary)
-                self.present(FoodiesTabBarController(), animated: false, completion: nil)
+                self.present(LightStatusBarNavigationController(rootViewController: ChatsTable()), animated: false, completion: nil)
             }) { (error) in
                 print(error.localizedDescription)
             }
@@ -195,7 +196,7 @@ class HomeView: UIViewController, UITextFieldDelegate{
 
         
         self.view.addSubview(loginImageView)
-        loginImageView.topAnchor.constraint(equalTo: self.view.topAnchor, constant: 70).isActive = true
+        loginImageView.topAnchor.constraint(equalTo: self.view.topAnchor, constant: 20).isActive = true
         loginImageView.centerXAnchor.constraint(equalTo: self.view.centerXAnchor, constant: 0).isActive = true
         loginImageView.widthAnchor.constraint(equalToConstant: 200).isActive = true
         loginImageView.heightAnchor.constraint(equalToConstant: 200).isActive = true
@@ -286,9 +287,7 @@ class HomeView: UIViewController, UITextFieldDelegate{
             guard let username = usernameTextField.text?.trimmingCharacters(in: .whitespacesAndNewlines) else { return }
             guard let email = emailTextField.text?.trimmingCharacters(in: .whitespacesAndNewlines) else { return }
             guard let password = passwordTextField.text?.trimmingCharacters(in: .whitespacesAndNewlines) else { return }
-            print(username)
-            print(email)
-            print(password)
+
             if username == "" {
                 let alertController = UIAlertController(title: "Error", message: "Please enter a username", preferredStyle: .alert)
                 
@@ -321,19 +320,19 @@ class HomeView: UIViewController, UITextFieldDelegate{
                         guard let userUId = user?.uid else {
                             return
                         }
-                        let ref = Database.database().reference(fromURL: "https://foodies-19e91.firebaseio.com/")
+                        let ref = Database.database().reference(fromURL: "https://messaging-e9e92.firebaseio.com/")
                         
                         let usersRef = ref.child("Users").child(userUId)
-                        usersRef.updateChildValues(["username" : username, "email": email, "uid": userUId, "bio": "", "dishes": [], "restaurants": []])
+                        usersRef.updateChildValues(["username" : username, "email": email, "uid": userUId, "chats": []])
                         let changeRequest = Auth.auth().currentUser?.createProfileChangeRequest()
                         changeRequest?.displayName = username
                         changeRequest?.commitChanges { (error) in
                             if error == nil {
-                                self.present(FoodiesTabBarController(), animated: false, completion: nil)
+                                self.present(LightStatusBarNavigationController(rootViewController: ChatsTable()), animated: false, completion: nil)
                             } else {
                                 print("Error while changing users username with error code:")
                                 print(error!)
-                                self.present(FoodiesTabBarController(), animated: false, completion: nil)
+                                self.present(LightStatusBarNavigationController(rootViewController: ChatsTable()), animated: false, completion: nil)
                             }
                         }
                         
@@ -349,7 +348,6 @@ class HomeView: UIViewController, UITextFieldDelegate{
                     }
                 }
             }
-            print("sign up")
         case "login":
             guard let email = emailTextField.text?.trimmingCharacters(in: .whitespacesAndNewlines) else { return }
             guard let password = passwordTextField.text?.trimmingCharacters(in: .whitespacesAndNewlines) else { return }
@@ -361,7 +359,7 @@ class HomeView: UIViewController, UITextFieldDelegate{
                     print("You have successfully logged in")
                     
                     //Go to the HomeViewController if the login is sucessful
-                    self.present(FoodiesTabBarController(), animated: false, completion: nil)
+                    self.present(LightStatusBarNavigationController(rootViewController: ChatsTable()), animated: false, completion: nil)
                     
                 } else {
                     
@@ -374,7 +372,6 @@ class HomeView: UIViewController, UITextFieldDelegate{
                     self.present(alertController, animated: true, completion: nil)
                 }
             }
-            print("login")
         default:
             break
         }

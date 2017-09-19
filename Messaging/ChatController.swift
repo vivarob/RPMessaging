@@ -7,89 +7,294 @@
 //
 
 import UIKit
+import Firebase
 
-class ChatController: UITableViewController {
+class ChatController: UICollectionViewController, UICollectionViewDelegateFlowLayout{
+    
+    var writtingViewBottomConstraint: NSLayoutConstraint?
+    
+    var messages = [Message]()
+    var messagesIds = [String]()
+    
+    var user: User? {
+        didSet {
+            self.title = user?.username
+        }
+    }
+    var chat: Chat?
+    
+    var writtingTextfield: UITextField = {
+        let textField = UITextField()
+        textField.placeholder = "Enter your text here!"
+        textField.translatesAutoresizingMaskIntoConstraints = false
+        return textField
+    }()
 
     override func viewDidLoad() {
         super.viewDidLoad()
-
-        // Uncomment the following line to preserve selection between presentations
-        // self.clearsSelectionOnViewWillAppear = false
-
-        // Uncomment the following line to display an Edit button in the navigation bar for this view controller.
-        // self.navigationItem.rightBarButtonItem = self.editButtonItem()
+        collectionView?.contentInset = UIEdgeInsetsMake(8, 0, 58, 0)
+        collectionView?.scrollIndicatorInsets = UIEdgeInsets(top: 0, left: 0, bottom: 50, right: 0)
+        collectionView?.backgroundColor = .white
+        collectionView?.register(CurrentMessageCell.self, forCellWithReuseIdentifier: "CellId")
+        collectionView?.register(OtherMessageCell.self, forCellWithReuseIdentifier: "CellId2")
+        setUpNavigationController()
+        setUpView()
+    }
+    
+    override func viewWillAppear(_ animated: Bool) {
+        chat = Chat(dictionary: [:])
+        getChat()
     }
 
     override func didReceiveMemoryWarning() {
         super.didReceiveMemoryWarning()
-        // Dispose of any resources that can be recreated.
     }
+    
+    func setUpNavigationController(){
+        navigationController?.navigationBar.tintColor = .white
+        navigationController?.navigationBar.titleTextAttributes = [NSForegroundColorAttributeName: UIColor.white, NSFontAttributeName: UIFont(name: "HelveticaNeue-Bold", size: 20)!]
 
-    // MARK: - Table view data source
-
-    override func numberOfSections(in tableView: UITableView) -> Int {
-        // #warning Incomplete implementation, return the number of sections
-        return 0
+        let backButton = UIButton.init(type: .custom)
+        backButton.setImage(#imageLiteral(resourceName: "backArrow"), for: UIControlState.normal)
+        backButton.frame = CGRect.init(x: 0, y: 0, width: 12, height: 20)
+        backButton.addTarget(self, action: #selector(dismissVC), for: .touchUpInside)
+        //
+        
+        let leftButtonItem = UIBarButtonItem.init(customView: backButton)
+        navigationItem.leftBarButtonItem = leftButtonItem
     }
-
-    override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        // #warning Incomplete implementation, return the number of rows
-        return 0
+    
+    func dismissVC(){
+        navigationController?.popToRootViewController(animated: true)
     }
-
-    /*
-    override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        let cell = tableView.dequeueReusableCell(withIdentifier: "reuseIdentifier", for: indexPath)
-
-        // Configure the cell...
-
-        return cell
+    
+    func getChat(){
+        let ref = Database.database().reference()
+        ref.child("Chats").observe(.childAdded , with: { (snapshot) in
+            // Get user value
+            guard let value = snapshot.value as? NSDictionary else {
+                print("Couldn't get value from snapshot")
+                return
+            }
+            guard let currentId = Auth.auth().currentUser?.uid else {
+                print("Couldn't get current user uid")
+                return
+            }
+            
+            guard let userId = self.user?.uid else {
+                print("Couldn't get current user uid")
+                return
+            }
+            
+            if (value["users"] as? [String])!.contains(userId) && (value["users"] as? [String])!.contains(currentId) {
+                self.chat = Chat(dictionary: value  as! [String : Any])
+                self.getMessages()
+            }
+            
+            // ...
+        }) { (error) in
+            print(error.localizedDescription)
+        }
     }
-    */
-
-    /*
-    // Override to support conditional editing of the table view.
-    override func tableView(_ tableView: UITableView, canEditRowAt indexPath: IndexPath) -> Bool {
-        // Return false if you do not want the specified item to be editable.
-        return true
+    
+    func getMessages(){
+        let ref = Database.database().reference()
+        self.messages.removeAll()
+        self.messagesIds.removeAll()
+        self.collectionView?.reloadData()
+        ref.child("Messages").observe(.childAdded , with: { (snapshot) in
+            // Get user value
+            guard let value = snapshot.value as? NSDictionary else {
+                print("Couldn't get value from snapshot")
+                return
+            }
+            if !self.messagesIds.contains((value["id"] as? String)!) && (self.chat?.messages.contains((value["id"] as? String)!))! {
+                    
+                //                if value.value(forKey: "userId") as? String == userID {
+                self.messagesIds.append((value["id"] as? String)!)
+                self.messages.append(Message(dictionary: value as! [String : Any]))
+                //                }
+            }
+            self.collectionView?.reloadData()
+            
+            // ...
+        }) { (error) in
+            print(error.localizedDescription)
+        }
+        
     }
-    */
-
-    /*
-    // Override to support editing the table view.
-    override func tableView(_ tableView: UITableView, commit editingStyle: UITableViewCellEditingStyle, forRowAt indexPath: IndexPath) {
-        if editingStyle == .delete {
-            // Delete the row from the data source
-            tableView.deleteRows(at: [indexPath], with: .fade)
-        } else if editingStyle == .insert {
-            // Create a new instance of the appropriate class, insert it into the array, and add a new row to the table view
-        }    
+    
+    func setUpView(){
+        let tap = UITapGestureRecognizer(target: self, action: #selector(dismissKeyboard))
+        view.addGestureRecognizer(tap)
+        
+        NotificationCenter.default.addObserver(self, selector: #selector(keyboardWillShow), name: NSNotification.Name.UIKeyboardWillShow, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(keyboardWillHide), name: NSNotification.Name.UIKeyboardWillHide, object: nil)
+        
+        let writtingView = UIView()
+        writtingView.backgroundColor = .white
+        writtingView.translatesAutoresizingMaskIntoConstraints  = false
+        
+        view.addSubview(writtingView)
+        writtingView.leftAnchor.constraint(equalTo: view.leftAnchor).isActive = true
+        writtingView.rightAnchor.constraint(equalTo: view.rightAnchor).isActive = true
+        writtingViewBottomConstraint = writtingView.bottomAnchor.constraint(equalTo: view.bottomAnchor)
+        writtingViewBottomConstraint?.isActive = true
+        writtingView.heightAnchor.constraint(equalToConstant: 50).isActive = true
+        
+        let sendButton = UIButton(type: .system)
+        sendButton.setTitle("Send", for: .normal)
+        sendButton.addTarget(self, action: #selector(handleSend), for: .touchUpInside)
+        sendButton.translatesAutoresizingMaskIntoConstraints = false
+        
+        writtingView.addSubview(sendButton)
+        sendButton.centerYAnchor.constraint(equalTo: writtingView.centerYAnchor).isActive = true
+        sendButton.rightAnchor.constraint(equalTo: writtingView.rightAnchor).isActive = true
+        sendButton.widthAnchor.constraint(equalToConstant: 80).isActive = true
+        sendButton.heightAnchor.constraint(equalTo: writtingView.heightAnchor).isActive = true
+    
+      
+        
+        writtingView.addSubview(writtingTextfield)
+        writtingTextfield.centerYAnchor.constraint(equalTo: writtingView.centerYAnchor).isActive = true
+        writtingTextfield.leftAnchor.constraint(equalTo: writtingView.leftAnchor, constant: 8).isActive = true
+        writtingTextfield.rightAnchor.constraint(equalTo: sendButton.leftAnchor).isActive = true
+        writtingTextfield.heightAnchor.constraint(equalTo: writtingView.heightAnchor).isActive = true
+        
+        
+        let separatorView = UIView()
+        separatorView.backgroundColor = UIColor(red: 220/245, green: 220/245, blue: 220/245, alpha: 1)
+        separatorView.translatesAutoresizingMaskIntoConstraints  = false
+        
+        view.addSubview(separatorView)
+        separatorView.leftAnchor.constraint(equalTo: view.leftAnchor).isActive = true
+        separatorView.rightAnchor.constraint(equalTo: view.rightAnchor).isActive = true
+        separatorView.bottomAnchor.constraint(equalTo: writtingView.topAnchor).isActive = true
+        separatorView.heightAnchor.constraint(equalToConstant: 1).isActive = true
     }
-    */
+    
+    func dismissKeyboard(){
+        self.view.endEditing(true)
+    }
+    
+    func handleSend(){
+        let textToSend =  writtingTextfield.text!
 
-    /*
-    // Override to support rearranging the table view.
-    override func tableView(_ tableView: UITableView, moveRowAt fromIndexPath: IndexPath, to: IndexPath) {
+        writtingTextfield.text = ""
+        guard let currentId = Auth.auth().currentUser?.uid else {
+            print("Couldn't get current user uid")
+            return
+        }
+        
+        guard let user = self.user else {
+            print("Couldn't get current user uid")
+            return
+        }
+        
+        let messageRef = Database.database().reference().child("Messages").childByAutoId()
+        let messageValues = ["text": textToSend, "id": messageRef.key, "userId": currentId]
+        messageRef.updateChildValues(messageValues)
+        
+        var chatRef = Database.database().reference().child("Chats")
+        var chatId = ""
+        if chat?.id == "Invalid id" {
+            chatRef = chatRef.childByAutoId()
+            chatId = chatRef.key
+        } else {
+            chatRef = chatRef.child((chat?.id)!)
+            chatId = (chat?.id)!
+        }
+        
+        var messagesArray = chat?.messages
+        messagesArray?.append(messageRef.key)
+        let chatValues = ["messages": messagesArray!, "id":chatId, "users": [currentId, user.uid], "lastMessage": textToSend] as [String : Any]
+        chat = Chat(dictionary: chatValues)
+        chatRef.updateChildValues(chatValues)
+
+        let userRef = Database.database().reference().child("Users").child((user.uid))
+        var chatsArray = user.chats
+        if !(chatsArray.contains(chatRef.key)) {
+            chatsArray.append(chatRef.key)
+        }
+        let userValues = ["chats": chatsArray]
+        userRef.updateChildValues(userValues)
+
+        
+        let currentUserRef = Database.database().reference().child("Users").child(currentId)
+        
+        let ref = Database.database().reference().child("Users")
+        ref.observe(.childAdded , with: { (snapshot) in
+            // Get user value
+            guard let value = snapshot.value as? NSDictionary else {
+                print("Couldn't get value from snapshot")
+                return
+            }
+            if value["uid"] as? String == currentId {
+                let currentUser = User(dictionary: value  as! [String : Any])
+                var myChatsArray = currentUser.chats
+                if !(myChatsArray.contains(chatRef.key)) {
+                    myChatsArray.append(chatRef.key)
+                }
+                let currentUserValues = ["chats": myChatsArray]
+                currentUserRef.updateChildValues(currentUserValues)
+            }
+            // ...
+        }) { (error) in
+            print(error.localizedDescription)
+        }
+        
+        
+
 
     }
-    */
+    
+    func keyboardWillShow(notification: NSNotification) {
+        guard let keyboardSize = (notification.userInfo?[UIKeyboardFrameBeginUserInfoKey] as? NSValue)?.cgRectValue  else {
+            print("Couldn't get keyboard size")
+            return
+        }
+        writtingViewBottomConstraint?.constant = -keyboardSize.height
 
-    /*
-    // Override to support conditional rearranging of the table view.
-    override func tableView(_ tableView: UITableView, canMoveRowAt indexPath: IndexPath) -> Bool {
-        // Return false if you do not want the item to be re-orderable.
-        return true
     }
-    */
-
-    /*
-    // MARK: - Navigation
-
-    // In a storyboard-based application, you will often want to do a little preparation before navigation
-    override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
-        // Get the new view controller using segue.destinationViewController.
-        // Pass the selected object to the new view controller.
+    
+    func keyboardWillHide(notification: NSNotification) {
+            writtingViewBottomConstraint?.constant = 0
     }
-    */
+    
+    func heightForText(text: String) -> CGRect {
+        let size = CGSize(width: 200, height: 1000)
+        let options = NSStringDrawingOptions.usesFontLeading.union(.usesLineFragmentOrigin)
+        
+        return NSString(string: text).boundingRect(with: size, options: options, attributes: [NSFontAttributeName: UIFont.systemFont(ofSize: 16)], context: nil)
+        
+    }
+    
+    func collectionView(_ collectionView: UICollectionView, layout collectionViewLayout: UICollectionViewLayout, sizeForItemAt indexPath: IndexPath) -> CGSize {
+        var height: CGFloat = 50
+        
+        height = heightForText(text: messages[indexPath.row].text).height + 20
+        
+        return CGSize(width: collectionView.frame.width, height: height)
+
+        
+    }
+    
+    override func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
+        return messages.count
+    }
+    
+    override func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
+        if messages[indexPath.row].userId != Auth.auth().currentUser?.uid {
+            let cell = collectionView.dequeueReusableCell(withReuseIdentifier: "CellId2", for: indexPath) as! OtherMessageCell
+            cell.cellBackgroundWidthConstraint?.constant = heightForText(text: messages[indexPath.row].text).width + 32
+            cell.messageTextView.text = messages[indexPath.row].text
+            return cell
+        } else {
+            let cell = collectionView.dequeueReusableCell(withReuseIdentifier: "CellId", for: indexPath) as! CurrentMessageCell
+            cell.cellBackgroundWidthConstraint?.constant = heightForText(text: messages[indexPath.row].text).width + 32
+            cell.messageTextView.text = messages[indexPath.row].text
+            return cell
+        }
+    }
 
 }
