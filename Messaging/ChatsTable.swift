@@ -102,7 +102,7 @@ class ChatsTable: UITableViewController {
             let firebaseAuth = Auth.auth()
             do {
                 try firebaseAuth.signOut()
-                self.present(HomeView(), animated: false, completion: nil)
+                self.present(LightStatusBarNavigationController(rootViewController: HomeView()), animated: false, completion: nil)
             } catch let signOutError as NSError {
                 print ("Error signing out: \(signOutError)")
             } catch {

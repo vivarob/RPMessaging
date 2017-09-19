@@ -196,7 +196,7 @@ class HomeView: UIViewController, UITextFieldDelegate{
 
         
         self.view.addSubview(loginImageView)
-        loginImageView.topAnchor.constraint(equalTo: self.view.topAnchor, constant: 20).isActive = true
+        loginImageView.topAnchor.constraint(equalTo: self.view.topAnchor, constant: 50).isActive = true
         loginImageView.centerXAnchor.constraint(equalTo: self.view.centerXAnchor, constant: 0).isActive = true
         loginImageView.widthAnchor.constraint(equalToConstant: 200).isActive = true
         loginImageView.heightAnchor.constraint(equalToConstant: 200).isActive = true
