@@ -113,11 +113,17 @@ class ChatController: UICollectionViewController, UICollectionViewDelegateFlowLa
                 //                if value.value(forKey: "userId") as? String == userID {
                 self.messagesIds.append((value["id"] as? String)!)
                 self.messages.append(Message(dictionary: value as! [String : Any]))
-                //                }
+                self.collectionView?.reloadData()
+                let item = self.collectionView(self.collectionView!, numberOfItemsInSection: 0) - 1
+                let lastItemIndex = IndexPath(item: item, section: 0)
+                self.collectionView?.scrollToItem(at: lastItemIndex, at: UICollectionViewScrollPosition.top, animated: false)
+
+                                //                }
             }
             
-            self.collectionView?.reloadData()
             
+            
+
             // ...
         }) { (error) in
             print(error.localizedDescription)
@@ -179,14 +185,12 @@ class ChatController: UICollectionViewController, UICollectionViewDelegateFlowLa
     }
     
     func handleSend(){
-        
-        
         guard let textToSend =  writtingTextfield.text?.trimmingCharacters(in: .whitespacesAndNewlines), textToSend != "" else {
             print("The message is empty")
 
             return
         }
-
+        
         writtingTextfield.text = ""
         guard let currentId = Auth.auth().currentUser?.uid else {
             print("Couldn't get current user uid")
@@ -199,7 +203,7 @@ class ChatController: UICollectionViewController, UICollectionViewDelegateFlowLa
         }
         
         let messageRef = Database.database().reference().child("Messages").childByAutoId()
-        let messageValues = ["text": textToSend, "id": messageRef.key, "userId": currentId]
+        let messageValues = ["text": textToSend, "id": messageRef.key, "userId": currentId, "timestamp": ServerValue.timestamp()] as [String : Any]
         messageRef.updateChildValues(messageValues)
         
         var chatRef = Database.database().reference().child("Chats")
@@ -256,12 +260,18 @@ class ChatController: UICollectionViewController, UICollectionViewDelegateFlowLa
             print("Couldn't get keyboard size")
             return
         }
+        
+        collectionView?.contentInset = UIEdgeInsetsMake(8, 0, 58 + keyboardSize.height, 0)
         writtingViewBottomConstraint?.constant = -keyboardSize.height
+        let item = self.collectionView(self.collectionView!, numberOfItemsInSection: 0) - 1
+        let lastItemIndex = IndexPath(item: item, section: 0)
+        self.collectionView?.scrollToItem(at: lastItemIndex, at: UICollectionViewScrollPosition.top, animated: false)
 
     }
     
     func keyboardWillHide(notification: NSNotification) {
-            writtingViewBottomConstraint?.constant = 0
+        collectionView?.contentInset = UIEdgeInsetsMake(8, 0, 58, 0)
+        writtingViewBottomConstraint?.constant = 0
     }
     
     func heightForText(text: String) -> CGRect {
@@ -292,15 +302,19 @@ class ChatController: UICollectionViewController, UICollectionViewDelegateFlowLa
     }
     
     override func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "h:mm a"
         if messages[indexPath.row].userId != Auth.auth().currentUser?.uid {
             let cell = collectionView.dequeueReusableCell(withReuseIdentifier: "CellId2", for: indexPath) as! OtherMessageCell
             cell.cellBackgroundWidthConstraint?.constant = heightForText(text: messages[indexPath.row].text).width + 32
             cell.messageTextView.text = messages[indexPath.row].text
+            cell.dateLabel.text = dateFormatter.string(from: messages[indexPath.row].date)
             return cell
         } else {
             let cell = collectionView.dequeueReusableCell(withReuseIdentifier: "CellId", for: indexPath) as! CurrentMessageCell
             cell.cellBackgroundWidthConstraint?.constant = heightForText(text: messages[indexPath.row].text).width + 32
             cell.messageTextView.text = messages[indexPath.row].text
+            cell.dateLabel.text = dateFormatter.string(from: messages[indexPath.row].date)
             return cell
         }
     }

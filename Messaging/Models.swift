@@ -59,18 +59,20 @@ class Message {
     let id: String
     let text: String
     let userId: String
+    let date: Date
     
     init(dictionary: [String: Any]) {
         self.id = dictionary["id"] as? String ?? "Invalid id"
         self.text = dictionary["text"] as? String ?? "Invalid text"
         self.userId = dictionary["userId"] as? String ?? "Invalid userId"
+        self.date = Date(timeIntervalSince1970: TimeInterval((dictionary["timestamp"] as? Int)! / 1000))
         
     }
     
-    init(id: String, text: String, userId: String) {
+    init(id: String, text: String, userId: String, date: Date) {
         self.id = id
         self.userId = userId
         self.text = text
-        
+        self.date = date
     }
 }

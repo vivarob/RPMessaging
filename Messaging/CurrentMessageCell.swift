@@ -31,6 +31,13 @@ class CurrentMessageCell: UICollectionViewCell {
         return textView
     }()
     
+    var dateLabel: UILabel = {
+        let label = UILabel()
+        label.adjustsFontSizeToFitWidth = true
+        label.translatesAutoresizingMaskIntoConstraints = false
+        return label
+    }()
+    
     
     
     override init(frame: CGRect) {
@@ -48,6 +55,12 @@ class CurrentMessageCell: UICollectionViewCell {
         messageTextView.rightAnchor.constraint(equalTo: cellBackgroundView.rightAnchor).isActive = true
         messageTextView.bottomAnchor.constraint(equalTo: self.bottomAnchor).isActive = true
         messageTextView.topAnchor.constraint(equalTo: self.topAnchor).isActive = true
+        
+        addSubview(dateLabel)
+        dateLabel.rightAnchor.constraint(equalTo: cellBackgroundView.leftAnchor, constant: -4).isActive = true
+        dateLabel.bottomAnchor.constraint(equalTo: self.cellBackgroundView.bottomAnchor).isActive = true
+        dateLabel.heightAnchor.constraint(equalToConstant: 20).isActive = true
+        dateLabel.widthAnchor.constraint(equalToConstant: 50).isActive = true
     }
     
     required init?(coder aDecoder: NSCoder) {
